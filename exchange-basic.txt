@@ -1,0 +1,97 @@
+# NGINX Plus configuration for basic load balancing of Microsoft Exchange
+# servers
+#
+# For simplicity, all directives appear in this file. You can also create 
+# function-specific files in the /etc/nginx/conf.d directory (for example,
+# create separate files for the http{} and stream{} blocks in this file). Then 
+# use the 'include' directive in the main nginx.conf file to reference the
+# function-specific files.
+#
+# For more information, see http://nginx.org/r/include, and the 'Using NGINX
+# Plus to Load Balance Microsoft Exchange Servers' deployment guide at
+# nginx.com.
+
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log info;
+pid /var/run/nginx.pid;
+
+events {
+   worker_connections 1024;
+}
+
+http {
+    access_log /var/log/nginx/access.log main;
+    log_format main '$remote_addr - $remote_user [$time_local] '
+               '"$request" $status $body_bytes_sent '
+               '"$http_user_agent" "$upstream_addr"';
+    keepalive_timeout 3h;
+    proxy_read_timeout 3h;
+    tcp_nodelay on;
+    upstream exchange {
+        zone exchange-general 64k;
+        server 10.0.0.237:443; # Replace with IP address of a CAS
+        server 10.0.0.238:443; # Replace with IP address of a CAS
+        sticky learn create=$remote_addr lookup=$remote_addr
+               zone=client_sessions:10m timeout=3h;
+}
+
+    server {
+        listen 80;
+        location / {
+            return 301 https://$host$request_uri;
+        }
+    }
+
+    server {
+        listen 443 ssl;
+        client_max_body_size 2G;
+        ssl_certificate /etc/nginx/ssl/company.com.crt;
+        ssl_certificate_key /etc/nginx/ssl/company.com.key;
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+        status_zone exchange-combined;
+
+        location = / {
+            return 301 "/owa/";
+        }
+
+        location = /favicon.ico {
+            empty_gif;
+            access_log off;
+        }
+	
+        location / {
+            proxy_pass https://exchange;
+            proxy_buffering off;
+            proxy_http_version 1.1;
+            proxy_request_buffering off;
+            proxy_set_header Connection "Keep-Alive";
+        }
+    }
+}
+
+stream {
+    upstream exchange-imaps {
+        zone exchange-imaps 64k;
+        server 10.0.0.237:993; # Replace with IP address of a CAS
+        server 10.0.0.238:993; # Replace with IP address of a CAS
+    }
+    
+    upstream exchange-smtp {
+        zone exchange-smtp 64k;
+        server 10.0.0.237:25; # Replace with IP address of a CAS
+        server 10.0.0.238:25; # Replace with IP address of a CAS
+    }
+    
+    server {
+        listen 993;
+        status_zone exchange-imaps;
+        proxy_pass exchange-imaps;
+    }
+
+    server {
+        listen 25; # SMTP port can be changed here (to 587, for example)
+        status_zone exchange-smtp;
+        proxy_pass exchange-smtp;
+    }
+}
