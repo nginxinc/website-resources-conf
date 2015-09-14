@@ -37,36 +37,42 @@ http {
 
     upstream exchange {
         zone exchange-general 64k;
+	ntlm;
         server 10.0.0.237:443; # Replace with IP address of a CAS
         server 10.0.0.238:443; # Replace with IP address of a CAS
     }
 
     upstream exchange-activesync {
         zone exchange-activesync 64k;
+	ntlm;
         server 10.0.0.237:443; # Replace with IP address of a CAS
         server 10.0.0.238:443; # Replace with IP address of a CAS
     }
 
     upstream exchange-ecp {
         zone exchange-ecp 64k;
+	ntlm;
         server 10.0.0.237:443; # Replace with IP address of a CAS
         server 10.0.0.238:443; # Replace with IP address of a CAS
     }
 
     upstream exchange-mapi {
         zone exchange-mapi 64k;
+	ntlm;
         server 10.0.0.237:443; # Replace with IP address of a CAS
         server 10.0.0.238:443; # Replace with IP address of a CAS
     }
 
     upstream exchange-owa {
         zone exchange-owa 64k;
+	ntlm;
         server 10.0.0.237:443; # Replace with IP address of a CAS
         server 10.0.0.238:443; # Replace with IP address of a CAS
     }
 
     upstream exchange-rpc {
         zone exchange-rpc 64k;
+	ntlm;
         server 10.0.0.237:443; # Replace with IP address of a CAS
         server 10.0.0.238:443; # Replace with IP address of a CAS
         sticky learn create=$remote_addr lookup=$remote_addr

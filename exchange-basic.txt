@@ -30,6 +30,7 @@ http {
     tcp_nodelay on;
     upstream exchange {
         zone exchange-general 64k;
+	ntlm;
         server 10.0.0.237:443; # Replace with IP address of a CAS
         server 10.0.0.238:443; # Replace with IP address of a CAS
         sticky learn create=$remote_addr lookup=$remote_addr
