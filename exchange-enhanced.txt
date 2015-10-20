@@ -114,6 +114,8 @@ http {
 
         location / {
             proxy_pass https://exchange;
+	    proxy_http_version 1.1;
+	    proxy_set_header Connection "";
         }
 
         location /ecp {
@@ -124,22 +126,30 @@ http {
             #allow 172.16.0.0/16; # Replace with your admin network
             #deny all;
             proxy_pass https://exchange-ecp;
+	    proxy_http_version 1.1;
+	    proxy_set_header Connection "";
             health_check uri=/ecp/healthcheck.htm interval=3s
                          match=exchange-health;
         }      
 
         location /mapi {
             proxy_pass https://exchange-mapi;
+	    proxy_http_version 1.1;
+	    proxy_set_header Connection "";
             health_check uri=/mapi/healthcheck.htm interval=3s
                          match=exchange-health;
         }
 
         location /Microsoft-Server-ActiveSync {
             proxy_pass https://exchange-activesync;
+	    proxy_http_version 1.1;
+	    proxy_set_header Connection "";
         }
 
         location /owa {
             proxy_pass https://exchange-owa;
+	    proxy_http_version 1.1;
+	    proxy_set_header Connection "";
             health_check uri=/owa/healthcheck.htm interval=3s
                          match=exchange-health;
         }
