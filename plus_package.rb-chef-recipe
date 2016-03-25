@@ -1,0 +1,131 @@
+#
+# Cookbook Name:: nginx
+# Recipe:: plus_package
+# Author:: Damian Curry <damian.curry@nginx.com>
+#
+# Copyright 2008-2013, Chef Software, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+include_recipe 'nginx::ohai_plugin'
+
+directory '/etc/ssl/nginx' do
+  owner 'root'
+  group 'root'
+  mode '0755'
+  action :create
+end
+
+file '/etc/ssl/nginx/nginx-repo.key' do
+  owner 'root'
+  group 'root'
+  mode 0644
+  content node.attribute['nginx']['nginx_repo_key']
+end
+
+file '/etc/ssl/nginx/nginx-repo.crt' do
+  owner 'root'
+  group 'root'
+  mode 0644
+  content node.attribute['nginx']['nginx_repo_crt']
+end
+
+remote_file '/etc/ssl/nginx/CA.crt' do
+  source 'https://cs.nginx.com/static/files/CA.crt'
+  owner 'root'
+  group 'root'
+  mode 0644
+end
+
+remote_file '/etc/apt/apt.conf.d/90nginx' do
+  source 'https://cs.nginx.com/static/files/90nginx'
+  owner 'root'
+  group 'root'
+  mode 0644
+end
+
+#this is currently only setup for ubuntu, rhel to follow
+if platform_family?('debian')
+  include_recipe 'apt::default'
+
+  apt_repository 'nginx_plus' do
+    uri          'https://plus-pkgs.nginx.com/ubuntu'
+    distribution node['lsb']['codename']
+    components   %w(nginx-plus)
+    deb_src      false
+    key          'http://nginx.org/keys/nginx_signing.key'
+  end
+end
+
+package node['nginx']['package_name'] do
+  notifies :reload, 'ohai[reload_nginx]', :immediately
+  not_if 'which nginx'
+end
+
+service 'nginx' do
+  supports :status => true, :restart => true, :reload => true
+  action   :enable
+end
+
+include_recipe 'nginx::commons'
+
+if node['nginx']['plus_status_enabe'] == 'true'
+  template 'nginx_plus_status' do
+    path "#{node['nginx']['dir']}/conf.d/nginx_plus_status.conf"
+    source 'nginx_plus_status.erb'
+    owner  'root'
+    group  node['root_group']
+    mode   '0644'
+    notifies :reload, 'service[nginx]', :delayed
+  end
+end
+
+if node['nginx']['enable_ha_mode'] == 'true'
+  ha_pair_ips = Array.new
+  origip = "#{node[:network][:interfaces][:eth1][:addresses].detect{|k,v| v[:family] == 'inet'}.first}"
+
+  # The code for finding the IP address of the eth0 interface
+  # follows, commented out.
+  #origip = "#{node[:ipaddress]}"
+  #search(:node, "role:nginx_plus_ha AND enable_ha_mode:true NOT name:#{node.name}") do |nodes|
+  #  ha_pair_ips << nodes["ipaddress"]
+  #end
+  # This is a workaround for getting the IP address for the eth1
+  # that VMs need
+  search(:node, "role:nginx_plus_ha AND enable_ha_mode:true NOT name:#{node.name}") do |nodes|
+      nodes["network"]["interfaces"]["eth1"]["addresses"].each_pair do |address,value|
+      ha_pair_ips << address if value.has_key?("broadcast")
+    end
+  end
+
+  package 'nginx-ha-keepalived' do
+    action :install
+  end
+
+  service 'keepalived' do
+    supports :status => true, :restart => true, :reload => true
+    action   :enable
+  end
+  template '/etc/keepalived/keepalived.conf' do
+    source 'nginx_plus_keepalived.conf.erb'
+    owner 'root'
+    group node['root_group']
+    mode '0644'
+    variables(
+              :myip => origip,
+              :ha_pair_ip => ha_pair_ips
+             )
+    notifies :reload, 'service[keepalived]', :delayed
+  end
+end
