@@ -1,6 +1,6 @@
 # THIS REPO IS NOW ARCHIVED
 
-# This repository has been archived. There will likely be no further development on the project and security vulnerabilities may be unaddressed.#![image](https://user-images.githubusercontent.com/93610467/183770233-23d00425-1042-4463-a408-eeb817e555d6.png)
+# This repository has been archived. There will likely be no further development on the project and security vulnerabilities may be unaddressed.
 
 
 # website-resources-conf
